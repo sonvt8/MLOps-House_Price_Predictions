@@ -11,17 +11,20 @@ model:
   rmse: ..., mae: ..., r2_score: ...
 
 Run:
-  python src/models/train_model.py \
-    --config configs/model_config.yaml \
+  python src/training/train_model.py \
+    --config src/configs/model_config.yaml \
     --data data/featured/featured_house_data.csv \
-    --models-dir models/trained \
+    --models-dir src/models/trained \
     --mlflow-tracking-uri http://localhost:5555
 """
 
 from __future__ import annotations
-import argparse, json, logging
+import argparse, json, logging, sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# Add project root to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import joblib, yaml, mlflow, mlflow.sklearn
 import numpy as np, pandas as pd
@@ -29,7 +32,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 
-from .pipeline import build_preprocess, build_model, build_pipeline
+from pipeline import build_preprocess, build_model, build_pipeline
 
 
 # --------------------------- utils --------------------------- #
@@ -50,8 +53,10 @@ def infer_feature_types(df: pd.DataFrame, target: str) -> Tuple[List[str], List[
 
 
 def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+    from sklearn.metrics import mean_squared_error
+
     return {
-        "rmse": float(mean_squared_error(y_true, y_pred, squared=False)),
+        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
         "mae": float(mean_absolute_error(y_true, y_pred)),
         "r2": float(r2_score(y_true, y_pred)),
     }
@@ -109,10 +114,21 @@ def feature_names_after_fit(
 
 # --------------------------- core --------------------------- #
 def train_main(
-    config_path: Path, data_path: Path, models_dir: Path, tracking_uri: Optional[str]
+    config_path: Path,
+    data_path: Path,
+    models_dir: Path,
+    tracking_uri: Optional[str],
+    experiment_name_arg: Optional[str] = None,
 ) -> None:
     cfg = load_config(config_path)
     model_cfg: Dict = cfg.get("model", {})
+    # Experiment/run naming (allow override via CLI, then YAML, then sensible default)
+    experiment_name_cfg: Optional[str] = (cfg.get("experiment") or {}).get(
+        "name"
+    ) or cfg.get("experiment_name")
+    experiment_name: str = (
+        experiment_name_arg or experiment_name_cfg or "house_price_experiments"
+    )
 
     target = model_cfg.get("target_variable") or "price"
     scoring = model_cfg.get("scoring") or "neg_root_mean_squared_error"
@@ -174,7 +190,20 @@ def train_main(
     # MLflow
     if tracking_uri:
         mlflow.set_tracking_uri(tracking_uri)
-    with mlflow.start_run():
+    # Ensure we log under a meaningful experiment name
+    try:
+        mlflow.set_experiment(experiment_name)
+    except Exception:
+        pass
+
+    # Compose a human-friendly run name
+    run_name = (
+        (cfg.get("run_name") or None)
+        or f"{model_cfg.get('name', 'model')}-{model_name}-{Path(data_path).stem}-"
+        f"{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+
+    with mlflow.start_run(run_name=run_name) as run:
         mlflow.log_param("target", target)
         mlflow.log_param("model_name", model_name)
         for k, v in (gs.best_params_ or {}).items():
@@ -202,6 +231,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--data", required=True, type=str)
     p.add_argument("--models-dir", required=True, type=str)
     p.add_argument("--mlflow-tracking-uri", default=None, type=str)
+    p.add_argument("--experiment-name", default=None, type=str)
     return p.parse_args()
 
 
@@ -213,6 +243,7 @@ def main() -> None:
         Path(a.data).expanduser(),
         Path(a.models_dir).expanduser(),
         a.mlflow_tracking_uri,
+        a.experiment_name,
     )
 
 

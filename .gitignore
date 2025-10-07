@@ -208,3 +208,5 @@ __marimo__/
 
 # For this project
 data/processed/
+src/models/
+mlruns/

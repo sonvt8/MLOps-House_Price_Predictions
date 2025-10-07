@@ -1,0 +1,16 @@
+experiment:
+  name: HousePrice - Experiments
+run_name: RF_on_featured_v2
+
+cv: 5
+
+model:
+  name: house_price_model
+  best_model: RandomForest
+  target_variable: price
+  scoring: r2
+  feature_sets:
+    rfe: [sqft, bedrooms, bathrooms, location, year_built, condition, house_age, price_per_sqft, bed_bath_ratio]
+  parameters:
+    n_estimators: 300
+    max_depth: 20

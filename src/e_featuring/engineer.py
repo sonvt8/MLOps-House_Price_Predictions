@@ -11,7 +11,7 @@ This script adds derived columns that don't learn parameters from data:
 - house_age      = current_year - year_built
 
 Run:
-  python src/features/engineer.py \
+  python src/e_featuring/engineer.py \
     --input data/processed/cleaned_data.csv \
     --output data/featured/featured_house_data.csv
 """
