@@ -6,7 +6,7 @@ class HousePredictionRequest(BaseModel):
     bedrooms: int = Field(..., ge=1, description="Number of bedrooms")
     bathrooms: float = Field(..., gt=0, description="Number of bathrooms")
     location: str = Field(..., description="Location (Downtown, Mountain, Rural, Suburb, Urban, Waterfront)")
-    year_built: int = Field(..., ge=1800, le=2023, description="Year the house was built")
+    year_built: int = Field(..., ge=1800, le=2025, description="Year the house was built")
     condition: str = Field(..., description="Condition of the house (Excellent, Good, Fair, Poor)")
     # Optional features that will be calculated automatically if not provided
     total_rooms: float = Field(default=None, description="Total rooms (bedrooms + bathrooms) - calculated automatically if not provided")
