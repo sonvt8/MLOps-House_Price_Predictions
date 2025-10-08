@@ -1,6 +1,6 @@
 experiment:
   name: HousePrice - Experiments
-run_name: RF_on_featured_v2
+run_name: RF_on_featured_v3
 
 cv: 5
 
@@ -10,7 +10,7 @@ model:
   target_variable: price
   scoring: r2
   feature_sets:
-    rfe: [sqft, bedrooms, bathrooms, location, year_built, condition, house_age, price_per_sqft, bed_bath_ratio]
+    rfe: [sqft, bedrooms, bathrooms, location, year_built, condition, house_age, price_per_sqft, bed_bath_ratio, total_rooms]
   parameters:
     n_estimators: 300
     max_depth: 20
