@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-tracking-server
+    command: >
+      mlflow server --host 0.0.0.0
+      --backend-store-uri sqlite:////data/mlflow.db
+      --serve-artifacts
+      --artifacts-destination /artifacts
+    ports:
+      - "5555:5000"
+    volumes:
+      - ../deployment/mlflow/mlflow_db:/data
+      - ../deployment/mlflow/mlruns:/artifacts
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: house-price-api:latest
+    container_name: house-price-api
+    environment:
+      - APP_VERSION=1.0.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models/trained:/app/src/models/trained
+    depends_on:
+      - mlflow
+
+  streamlit:
+    build:
+      context: ..
+      dockerfile: src/streamlit_app/Dockerfile
+    image: house-price-ui:latest
+    container_name: house-price-ui
+    environment:
+      - API_URL=http://api:8000
+      - APP_VERSION=1.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api

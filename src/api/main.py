@@ -15,7 +15,7 @@ app = FastAPI(
         "An API for predicting house prices based on various features. "
         "This application is part of the MLOps Bootcamp by School of Devops."
     ),
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware
@@ -27,10 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Health check endpoint
 @app.get("/health", response_model=dict)
 async def health_check():
     return {"status": "healthy", "model_loaded": True}
+
 
 # Prediction endpoint
 @app.post("/predict", response_model=PredictionResponse)
@@ -47,14 +49,18 @@ async def predict(request: HousePredictionRequest):
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
 # Batch prediction endpoint
 @app.post("/batch-predict", response_model=list)
 async def batch_predict_endpoint(requests: list[HousePredictionRequest]):
     try:
         logger.info(f"Received batch prediction request with {len(requests)} items")
         if len(requests) > 100:  # Limit batch size
-            raise HTTPException(status_code=400, detail="Batch size too large. Maximum 100 items allowed.")
-        
+            raise HTTPException(
+                status_code=400,
+                detail="Batch size too large. Maximum 100 items allowed.",
+            )
+
         result = batch_predict(requests)
         logger.info(f"Batch prediction completed for {len(result)} items")
         return result

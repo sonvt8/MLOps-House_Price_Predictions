@@ -1,3 +1,32 @@
+"""
+Streamlit UI to collect inputs and fetch house price predictions from a FastAPI service.
+
+API contract (expected by backend /predict):
+  Request (JSON):
+    {
+      sqft: int,
+      bedrooms: int,
+      bathrooms: float,
+      location: str,
+      year_built: int,
+      condition: str
+    }
+  Response (JSON):
+    {
+      predicted_price: float,
+      confidence_interval: [float, float],
+      features_importance: { str: float },
+      prediction_time: str
+    }
+
+Run:
+  streamlit run src/streamlit_app/app.py
+
+Environment variables:
+  API_URL      Base URL of prediction API (default: http://localhost:8000)
+  APP_VERSION  App version string for footer (default: 1.0.0)
+"""
+
 import streamlit as st
 import requests
 import json
@@ -7,9 +36,7 @@ import socket  # For hostname and IP address
 
 # Set the page configuration (must be the first Streamlit command)
 st.set_page_config(
-    page_title="House Price Predictor",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_title="House Price Predictor", layout="wide", initial_sidebar_state="collapsed"
 )
 
 # ---------- Global Styles (modern look & feel) ---------- #
@@ -63,7 +90,10 @@ with col1:
     # Square Footage slider
     sqft = st.slider("Square Footage", 500, 5000, 1500, 50)
     st.caption(f"{sqft} sq ft")
-    st.markdown(f"<script>document.getElementById('sqft-value').innerText = '{sqft} sq ft';</script>", unsafe_allow_html=True)
+    st.markdown(
+        f"<script>document.getElementById('sqft-value').innerText = '{sqft} sq ft';</script>",
+        unsafe_allow_html=True,
+    )
 
     # Bedrooms and Bathrooms in two columns
     bed_col, bath_col = st.columns(2)
@@ -71,7 +101,9 @@ with col1:
         bedrooms = st.selectbox("Bedrooms", options=[1, 2, 3, 4, 5, 6], index=2)
 
     with bath_col:
-        bathrooms = st.selectbox("Bathrooms", options=[1, 1.5, 2, 2.5, 3, 3.5, 4], index=2)
+        bathrooms = st.selectbox(
+            "Bathrooms", options=[1, 1.5, 2, 2.5, 3, 3.5, 4], index=2
+        )
 
     # Location dropdown (aligned with API categories)
     location = st.selectbox(
@@ -91,7 +123,9 @@ with col1:
     )
 
     # Predict button
-    predict_button = st.button("Predict Price", use_container_width=True, type="primary")
+    predict_button = st.button(
+        "Predict Price", use_container_width=True, type="primary"
+    )
 
     # end left column
 
@@ -121,7 +155,10 @@ with col2:
                 api_endpoint = os.getenv("API_URL", "http://localhost:8000")
                 predict_url = f"{api_endpoint.rstrip('/')}/predict"
 
-                st.caption(f"Connecting to API at: <a class='api-link' href='{predict_url}' target='_blank'>{predict_url}</a>", unsafe_allow_html=True)
+                st.caption(
+                    f"Connecting to API at: <a class='api-link' href='{predict_url}' target='_blank'>{predict_url}</a>",
+                    unsafe_allow_html=True,
+                )
 
                 # Make API call to FastAPI backend
                 response = requests.post(predict_url, json=api_data, timeout=10)
@@ -133,7 +170,9 @@ with col2:
                 st.session_state.prediction_time = time.time()
             except requests.exceptions.RequestException as e:
                 st.error(f"Error connecting to API: {e}")
-                st.warning("Using mock data for demonstration purposes. Please check your API connection.")
+                st.warning(
+                    "Using mock data for demonstration purposes. Please check your API connection."
+                )
                 # For demo purposes, use mock data if API fails
                 st.session_state.prediction = {
                     "predicted_price": 467145,
@@ -141,9 +180,9 @@ with col2:
                     "features_importance": {
                         "sqft": 0.43,
                         "location": 0.27,
-                        "bathrooms": 0.15
+                        "bathrooms": 0.15,
                     },
-                    "prediction_time": "0.12 seconds"
+                    "prediction_time": "0.12 seconds",
                 }
                 st.session_state.prediction_time = time.time()
 
@@ -153,21 +192,26 @@ with col2:
 
         # Format the predicted price
         formatted_price = "${:,.0f}".format(pred["predicted_price"])
-        st.markdown(f'<div class="prediction-value">{formatted_price}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="prediction-value">{formatted_price}</div>',
+            unsafe_allow_html=True,
+        )
 
         # Display confidence score and model used
         col_a, col_b = st.columns(2)
         with col_a:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
-            st.markdown('<p class="info-label">Confidence Score</p>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="info-label">Confidence Score</p>', unsafe_allow_html=True
+            )
             st.markdown('<p class="info-value">92%</p>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with col_b:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
             st.markdown('<p class="info-label">Model Used</p>', unsafe_allow_html=True)
             st.markdown('<p class="info-value">XGBoost</p>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # Display price range and prediction time
         col_c, col_d = st.columns(2)
@@ -176,30 +220,44 @@ with col2:
             st.markdown('<p class="info-label">Price Range</p>', unsafe_allow_html=True)
             lower = "${:,.1f}".format(pred["confidence_interval"][0])
             upper = "${:,.1f}".format(pred["confidence_interval"][1])
-            st.markdown(f'<p class="info-value">{lower} - {upper}</p>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<p class="info-value">{lower} - {upper}</p>', unsafe_allow_html=True
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with col_d:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
-            st.markdown('<p class="info-label">Prediction Time</p>', unsafe_allow_html=True)
-            st.markdown('<p class="info-value">0.12 seconds</p>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="info-label">Prediction Time</p>', unsafe_allow_html=True
+            )
+            st.markdown(
+                '<p class="info-value">0.12 seconds</p>', unsafe_allow_html=True
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # Top factors (from feature importance if available)
         if pred.get("features_importance"):
             st.markdown('<div class="top-factors">', unsafe_allow_html=True)
-            st.markdown("<p><strong>Top Factors Affecting Price:</strong></p>", unsafe_allow_html=True)
-            importances = sorted(pred["features_importance"].items(), key=lambda x: x[1], reverse=True)[:5]
+            st.markdown(
+                "<p><strong>Top Factors Affecting Price:</strong></p>",
+                unsafe_allow_html=True,
+            )
+            importances = sorted(
+                pred["features_importance"].items(), key=lambda x: x[1], reverse=True
+            )[:5]
             items = "".join(f"<li>{k}: {v:.3f}</li>" for k, v in importances)
             st.markdown(f"<ul>{items}</ul>", unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
     else:
         # Display placeholder message
-        st.markdown("""
+        st.markdown(
+            """
         <div style="display: flex; height: 300px; align-items: center; justify-content: center; color: #6b7280; text-align: center;">
             Fill out the form and click "Predict Price" to see the estimated house price.
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # end right column
 
