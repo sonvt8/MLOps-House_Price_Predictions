@@ -96,7 +96,8 @@ jobs:
       - name: Start API and Streamlit
         working-directory: src
         run: |
-          docker compose up -d
+          # Avoid starting mlflow here to prevent container name conflicts
+          docker compose up -d --no-deps api streamlit
 
       - name: Show container status
         working-directory: src
@@ -104,11 +105,12 @@ jobs:
           docker compose ps
 
       - name: Tail container logs (short)
-        working-directory: src
         run: |
-          docker compose logs --no-color --timestamps --tail=200 mlflow || true
-          docker compose logs --no-color --timestamps --tail=200 api || true
-          docker compose logs --no-color --timestamps --tail=200 streamlit || true
+          # MLflow logs from deployment compose
+          docker compose -f deployment/mlflow/docker-compose.yaml logs --no-color --timestamps --tail=200 mlflow || true
+          # API & Streamlit logs from src compose
+          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 api || true
+          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 streamlit || true
 
       - name: Health check API
         run: |
@@ -133,14 +135,13 @@ jobs:
 
       - name: Compose logs after checks
         if: always()
-        working-directory: src
         run: |
           echo "==== MLflow Logs ===="
-          docker compose logs --no-color --timestamps --tail=200 mlflow || true
+          docker compose -f deployment/mlflow/docker-compose.yaml logs --no-color --timestamps --tail=200 mlflow || true
           echo "==== API Logs ===="
-          docker compose logs --no-color --timestamps --tail=200 api || true
+          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 api || true
           echo "==== Streamlit Logs ===="
-          docker compose logs --no-color --timestamps --tail=200 streamlit || true
+          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 streamlit || true
 
       - name: Tear down services
         if: always()
