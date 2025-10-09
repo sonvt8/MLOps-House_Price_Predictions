@@ -24,6 +24,54 @@ Course reference: https://www.udemy.com/course/devops-to-mlops-bootcamp
 
 ---
 
+## Stage 0 — Manual Testing with Google Colab (Optional)
+
+Before running the automated pipeline, you can manually test the data processing and model experimentation using Jupyter notebooks on Google Colab. This helps validate the approach and generate configuration files.
+
+### Prerequisites for Colab
+- Google account
+- Access to Google Colab
+- NGROK_AUTH_TOKEN (for MLflow UI access in Colab)
+
+### Step 1: Upload Data to Google Drive
+1. Upload `data/raw/house_data.csv` to your Google Drive
+2. Place it in a folder like `Colab Notebooks/House Pricing/`
+
+### Step 2: Run Feature Engineering Notebook
+1. Open `notebooks/02_feature_engineering.ipynb` in Google Colab
+2. Mount Google Drive and update the data path if needed
+3. Run all cells to:
+   - Create features: `house_age`, `price_per_sqft`, `bed_bath_ratio`, `total_rooms`
+   - Generate `featured_house_data.csv` in your Google Drive
+
+### Step 3: Run Experimentation Notebook
+1. Open `notebooks/03_experimentation.ipynb` in Google Colab
+2. Set up NGROK_AUTH_TOKEN in Colab Secrets (for MLflow UI access)
+3. Run all cells to:
+   - Compare multiple ML models (LinearRegression, RandomForest, GradientBoosting, XGBoost)
+   - Generate `model_config.yaml` with best model configuration
+   - View MLflow UI via ngrok tunnel
+
+### Step 4: Download Generated Files
+After running the notebooks, download these files to your local project:
+- `featured_house_data.csv` → place in `data/featured/`
+- `model_config.yaml` → place in `src/configs/`
+
+### Benefits of Manual Testing
+- ✅ Validate data processing steps
+- ✅ Experiment with different models
+- ✅ Generate optimal configuration
+- ✅ Understand the MLflow tracking process
+- ✅ Create baseline for automated pipeline
+
+### Troubleshooting Google Colab
+- **NGROK_AUTH_TOKEN**: Get free token from https://ngrok.com/ and add to Colab Secrets
+- **File paths**: Update paths in notebooks if your Google Drive folder structure differs
+- **Package conflicts**: Restart runtime if you encounter import errors
+- **MLflow UI access**: Use the ngrok URL provided in the notebook output
+
+---
+
 ## Stage 1 — Data → Features → Train (with MLflow)
 
 1) Start MLflow Tracking Server
@@ -59,6 +107,8 @@ python src/training/train_model.py \
   --mlflow-tracking-uri http://localhost:5555 \
   --experiment-name "HousePrice - Experiments"
 ```
+
+**Note:** If you completed Stage 0 (Google Colab), you can use the generated `model_config.yaml` and `featured_house_data.csv` files directly, or let the pipeline regenerate them with the same configuration.
 
 Outputs:
 - Artifacts: `src/models/trained/model_pipeline.joblib`, `feature_names.json`, `metrics.json`

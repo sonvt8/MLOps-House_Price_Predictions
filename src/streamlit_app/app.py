@@ -33,11 +33,29 @@ import json
 import time
 import os
 import socket  # For hostname and IP address
+import yaml
 
 # Set the page configuration (must be the first Streamlit command)
 st.set_page_config(
     page_title="House Price Predictor", layout="wide", initial_sidebar_state="collapsed"
 )
+
+# Function to load model configuration
+@st.cache_data
+def load_model_config():
+    """Load model configuration from YAML file"""
+    try:
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'configs', 'model_config.yaml')
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        return config
+    except Exception as e:
+        st.warning(f"Could not load model config: {e}")
+        return {"model": {"best_model": "Unknown"}}
+
+# Load model configuration
+model_config = load_model_config()
+best_model = model_config.get("model", {}).get("best_model", "Unknown")
 
 # ---------- Global Styles (modern look & feel) ---------- #
 st.markdown(
@@ -210,7 +228,7 @@ with col2:
         with col_b:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
             st.markdown('<p class="info-label">Model Used</p>', unsafe_allow_html=True)
-            st.markdown('<p class="info-value">XGBoost</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="info-value">{best_model}</p>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         # Display price range and prediction time
