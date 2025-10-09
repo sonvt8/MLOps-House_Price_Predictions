@@ -81,17 +81,17 @@ jobs:
           cat > docker-compose.override.yaml << 'YAML'
           services:
             api:
-              image: house-price-api:latest
+              image: sonvt8/house-price-api:latest
               build: null
             streamlit:
-              image: house-price-ui:latest
+              image: sonvt8/house-price-ui:latest
               build: null
           YAML
 
       - name: Pull prebuilt images (skip if unavailable)
         run: |
-          docker pull house-price-api:latest || echo "api image not found locally/registry"
-          docker pull house-price-ui:latest || echo "ui image not found locally/registry"
+          docker pull sonvt8/house-price-api:latest || echo "api image not found locally/registry"
+          docker pull sonvt8/house-price-ui:latest || echo "ui image not found locally/registry"
 
       - name: Start API and Streamlit
         working-directory: src
