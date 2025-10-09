@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
@@ -11,6 +9,8 @@ services:
       --artifacts-destination /artifacts
     ports:
       - "5555:5000"
+    environment:
+      - PYTHONWARNINGS=ignore::DeprecationWarning
     volumes:
       - ../deployment/mlflow/mlflow_db:/data
       - ../deployment/mlflow/mlruns:/artifacts

@@ -74,6 +74,11 @@ jobs:
             --mlflow-tracking-uri $MLFLOW_TRACKING_URI \
             --experiment-name "${{ env.EXPERIMENT_NAME }}"
 
+      - name: Stop MLflow after training (avoid name conflict)
+        working-directory: deployment/mlflow
+        run: |
+          docker compose -f docker-compose.yaml down -v
+
       # Stage 5 — Start API + Streamlit with compose without building images
       - name: Prepare compose override to use prebuilt images
         working-directory: src
@@ -93,11 +98,10 @@ jobs:
           docker pull sonvt8/house-price-api:latest || echo "api image not found locally/registry"
           docker pull sonvt8/house-price-ui:latest || echo "ui image not found locally/registry"
 
-      - name: Start API and Streamlit
+      - name: Start API and Streamlit (full stack from src)
         working-directory: src
         run: |
-          # Avoid starting mlflow here to prevent container name conflicts
-          docker compose up -d --no-deps api streamlit
+          docker compose up -d
 
       - name: Show container status
         working-directory: src
@@ -105,12 +109,11 @@ jobs:
           docker compose ps
 
       - name: Tail container logs (short)
+        working-directory: src
         run: |
-          # MLflow logs from deployment compose
-          docker compose -f deployment/mlflow/docker-compose.yaml logs --no-color --timestamps --tail=200 mlflow || true
-          # API & Streamlit logs from src compose
-          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 api || true
-          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 streamlit || true
+          docker compose logs --no-color --timestamps --tail=200 mlflow || true
+          docker compose logs --no-color --timestamps --tail=200 api || true
+          docker compose logs --no-color --timestamps --tail=200 streamlit || true
 
       - name: Health check API
         run: |
@@ -135,18 +138,18 @@ jobs:
 
       - name: Compose logs after checks
         if: always()
+        working-directory: src
         run: |
           echo "==== MLflow Logs ===="
-          docker compose -f deployment/mlflow/docker-compose.yaml logs --no-color --timestamps --tail=200 mlflow || true
+          docker compose logs --no-color --timestamps --tail=200 mlflow || true
           echo "==== API Logs ===="
-          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 api || true
+          docker compose logs --no-color --timestamps --tail=200 api || true
           echo "==== Streamlit Logs ===="
-          docker compose -f src/docker-compose.yaml logs --no-color --timestamps --tail=200 streamlit || true
+          docker compose logs --no-color --timestamps --tail=200 streamlit || true
 
       - name: Tear down services
         if: always()
         working-directory: src
         run: |
           docker compose down -v
-          docker compose -f ../deployment/mlflow/docker-compose.yaml down -v
 

@@ -266,3 +266,98 @@ docker compose down --volumes
 Notes:
 - The compose mounts model artifacts from `src/models/trained` into the API container for rapid iteration.
 - MLflow metadata and artifacts are persisted under `deployment/mlflow/mlflow_db` and `deployment/mlflow/mlruns` on the host.
+
+---
+
+## CI — GitHub Actions validation (Stages 1→5, no image build/push)
+
+This repository includes an automated validation workflow that re-runs the key stages to ensure the current codebase is healthy after each change to `main`.
+
+Where: `.github/workflows/ci-validate.yml`
+
+What it does:
+- Starts MLflow tracking via compose and waits for `http://localhost:5555` to be available
+- Runs Stage 1 locally: data cleaning, feature engineering, and model training (logs to MLflow)
+- Stops that MLflow instance to avoid container name conflicts
+- Starts the full stack from `src/docker-compose.yaml` (MLflow + API + Streamlit) using prebuilt Docker Hub images
+- Prints container logs and runs health checks:
+  - API `/health` + quick docs and a smoke `POST /predict`
+  - Streamlit root (HTTP 200 check)
+- Tears down all containers and volumes
+
+Triggers:
+- Push to `main`
+- Manual trigger via Actions tab (workflow_dispatch)
+
+Requirements:
+- Docker is available on the runner (provided by `ubuntu-latest`)
+- Public images exist in Docker Hub:
+  - `sonvt8/house-price-api:latest`
+  - `sonvt8/house-price-ui:latest`
+
+How to run (manual):
+1. Open GitHub → Actions → "CI Validate Pipeline"
+2. Click "Run workflow"
+3. Select branch (e.g., `main`) → Run
+
+How to inspect results:
+- Open the workflow run → check steps:
+  - "Tail container logs (short)" prints logs for `mlflow`, `api`, and `streamlit`
+  - "Health check API" and "Health check Streamlit" verify endpoints
+  - Failure at any step will mark the workflow red with error context
+
+Customize image names (for forks):
+- If you publish images under a different Docker Hub namespace, update the image references in the step "Prepare compose override to use prebuilt images" inside `.github/workflows/ci-validate.yml`.
+
+MLOps role of this workflow:
+- Continuous validation: Ensures the end-to-end pipeline (data → features → training → serving) remains functional on every push to production (`main`).
+- Early failure signal: Surfaces broken dependencies or regressions via container logs and health checks.
+- Separation of concerns: Image build/publish is handled in a dedicated workflow; this job focuses on runtime validation using prebuilt images.
+
+---
+
+## CI — Docker image build & publish to Docker Hub
+
+Where: `.github/workflows/docker-publish.yml`
+
+What it does:
+- Builds multi-step matrix of Docker images for:
+  - `house-price-api` from project `Dockerfile`
+  - `house-price-ui` from `src/streamlit_app/Dockerfile`
+- Logs in to Docker Hub
+- Tags images from the Git tag that triggered the workflow
+- Pushes images to `DOCKERHUB_USERNAME/<image>:<tag>`
+
+Triggers:
+- Push of a Git tag matching `v*.*.*` (e.g., `v1.0.0`)
+
+Required GitHub Secrets (Repository → Settings → Secrets and variables → Actions):
+- `DOCKERHUB_USERNAME`: Your Docker Hub username (e.g., `sonvt8`)
+- `DOCKERHUB_TOKEN`: A Docker Hub access token or password
+
+How to create a Docker Hub token:
+1. Go to Docker Hub → Account Settings → Security → New Access Token
+2. Give it a name (e.g., `github-ci`) and copy the generated token
+3. Save it as `DOCKERHUB_TOKEN` in your GitHub repository secrets
+
+How to release images:
+1. Create a Git tag locally (example `v1.0.0`) and push it:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. The workflow will build and push:
+   - `${DOCKERHUB_USERNAME}/house-price-api:v1.0.0`
+   - `${DOCKERHUB_USERNAME}/house-price-ui:v1.0.0`
+
+Notes:
+- The workflow uses `docker/metadata-action` to generate tags from the Git tag.
+- It currently pushes for `linux/amd64` (adjust `platforms` if needed).
+- Use the published images in the validation workflow and local compose by referencing your Docker Hub namespace.
+
+MLOps role of this workflow:
+- Reproducible artifacts: Produces versioned, portable container images for API/UI.
+- Promotion & release: Git-tag driven releases align application versions with image tags.
+- Separation of concerns: Keeps build/publish independent from runtime validation.
+
+---

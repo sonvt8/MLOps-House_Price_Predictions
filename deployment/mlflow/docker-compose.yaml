@@ -10,6 +10,8 @@ services:
       --backend-store-uri sqlite:////data/mlflow.db
       --serve-artifacts
       --artifacts-destination /artifacts
+    environment:
+      - PYTHONWARNINGS=ignore::DeprecationWarning
     volumes:
       - ./mlflow_db:/data
       - ./mlruns:/artifacts
