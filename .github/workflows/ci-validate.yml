@@ -1,0 +1,151 @@
+name: CI Validate Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PYTHON_VERSION: '3.11'
+      MLFLOW_TRACKING_URI: http://localhost:5555
+      EXPERIMENT_NAME: "HousePrice - Experiments"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Stage 1 — Start MLflow via compose (detached)
+      - name: Start MLflow tracking server
+        working-directory: deployment/mlflow
+        run: |
+          docker compose -f docker-compose.yaml up -d
+
+      - name: Wait for MLflow to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:5555 >/dev/null; then
+              echo "MLflow is up"; break; fi; sleep 2; done
+          curl -sS http://localhost:5555 || (echo "MLflow not reachable" && exit 1)
+
+      # Stage 1 — Data processing
+      - name: Run data cleaning
+        run: |
+          python src/processing/data_processing.py \
+            --input data/raw/house_data.csv \
+            --output data/processed
+
+      - name: Run feature engineering
+        run: |
+          python src/e_featuring/engineer.py \
+            --input data/processed/cleaned_data.csv \
+            --output data/featured/featured_house_data.csv
+
+      - name: Train model (logs to MLflow)
+        env:
+          MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+        run: |
+          python src/training/train_model.py \
+            --config src/configs/model_config.yaml \
+            --data data/featured/featured_house_data.csv \
+            --models-dir src/models/trained \
+            --mlflow-tracking-uri $MLFLOW_TRACKING_URI \
+            --experiment-name "${{ env.EXPERIMENT_NAME }}"
+
+      # Stage 5 — Start API + Streamlit with compose without building images
+      - name: Prepare compose override to use prebuilt images
+        working-directory: src
+        run: |
+          cat > docker-compose.override.yaml << 'YAML'
+          services:
+            api:
+              image: house-price-api:latest
+              build: null
+            streamlit:
+              image: house-price-ui:latest
+              build: null
+          YAML
+
+      - name: Pull prebuilt images (skip if unavailable)
+        run: |
+          docker pull house-price-api:latest || echo "api image not found locally/registry"
+          docker pull house-price-ui:latest || echo "ui image not found locally/registry"
+
+      - name: Start API and Streamlit
+        working-directory: src
+        run: |
+          docker compose up -d
+
+      - name: Show container status
+        working-directory: src
+        run: |
+          docker compose ps
+
+      - name: Tail container logs (short)
+        working-directory: src
+        run: |
+          docker compose logs --no-color --timestamps --tail=200 mlflow || true
+          docker compose logs --no-color --timestamps --tail=200 api || true
+          docker compose logs --no-color --timestamps --tail=200 streamlit || true
+
+      - name: Health check API
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8000/health >/dev/null; then
+              echo "API healthy"; break; fi; sleep 2; done
+          curl -sS http://localhost:8000/docs | head -n 5 || true
+
+      - name: Smoke test prediction endpoint
+        run: |
+          curl -sS -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"sqft": 1500, "bedrooms": 3, "bathrooms": 2, "location": "Urban", "year_built": 2000, "condition": "Good"}' | jq . || true
+
+      - name: Health check Streamlit
+        run: |
+          # Streamlit root returns HTML; just check status code
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8501);
+            if [ "$code" = "200" ]; then echo "Streamlit up"; break; fi; sleep 2; done
+          curl -sI http://localhost:8501 | head -n 5 || true
+
+      - name: Compose logs after checks
+        if: always()
+        working-directory: src
+        run: |
+          echo "==== MLflow Logs ===="
+          docker compose logs --no-color --timestamps --tail=200 mlflow || true
+          echo "==== API Logs ===="
+          docker compose logs --no-color --timestamps --tail=200 api || true
+          echo "==== Streamlit Logs ===="
+          docker compose logs --no-color --timestamps --tail=200 streamlit || true
+
+      - name: Tear down services
+        if: always()
+        working-directory: src
+        run: |
+          docker compose down -v
+          docker compose -f ../deployment/mlflow/docker-compose.yaml down -v
+
