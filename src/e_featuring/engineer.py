@@ -1,5 +1,4 @@
-"""
-Feature engineering (deterministic only).
+"""Feature engineering (deterministic only).
 
 Args:
   --input   path to cleaned CSV (e.g., data/processed/cleaned_data.csv)
@@ -14,12 +13,17 @@ Run:
   python src/e_featuring/engineer.py \
     --input data/processed/cleaned_data.csv \
     --output data/featured/featured_house_data.csv
+
 """
 
 from __future__ import annotations
-import argparse, logging
+
+import argparse
+import logging
 from pathlib import Path
-import numpy as np, pandas as pd
+
+import numpy as np
+import pandas as pd
 
 
 def setup_logging() -> None:

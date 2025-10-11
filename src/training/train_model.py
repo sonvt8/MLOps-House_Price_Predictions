@@ -1,5 +1,4 @@
-"""
-Train + CV + MLflow logging, đọc config đúng cấu trúc:
+"""Train + CV + MLflow logging, đọc config đúng cấu trúc:
 
 model:
   best_model: RandomForest
@@ -19,20 +18,27 @@ Run:
 """
 
 from __future__ import annotations
-import argparse, json, logging, sys
+
+import argparse
+import json
+import logging
+import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+
 
 # Add project root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-import joblib, yaml, mlflow, mlflow.sklearn
-import numpy as np, pandas as pd
-from sklearn.model_selection import GridSearchCV
+import joblib
+import mlflow
+import mlflow.sklearn
+import numpy as np
+import pandas as pd
+import yaml
+from pipeline import build_model, build_pipeline, build_preprocess
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
-
-from pipeline import build_preprocess, build_model, build_pipeline
 
 
 # --------------------------- utils --------------------------- #
@@ -40,20 +46,19 @@ def setup_logging() -> None:
     logging.basicConfig(format="%(levelname)s | %(message)s", level=logging.INFO)
 
 
-def load_config(path: Path) -> Dict:
-    with open(path, "r", encoding="utf-8") as f:
+def load_config(path: Path) -> dict:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
-def infer_feature_types(df: pd.DataFrame, target: str) -> Tuple[List[str], List[str]]:
+def infer_feature_types(df: pd.DataFrame, target: str) -> tuple[list[str], list[str]]:
     feats = [c for c in df.columns if c != target]
     num = [c for c in feats if pd.api.types.is_numeric_dtype(df[c])]
     cat = [c for c in feats if c not in num]
     return num, cat
 
 
-def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
-    from sklearn.metrics import mean_squared_error
+def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
 
     return {
         "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
@@ -62,12 +67,8 @@ def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     }
 
 
-def select_features_by_config(
-    df: pd.DataFrame, model_cfg: Dict, target: str
-) -> pd.DataFrame:
-    """
-    Dùng danh sách 'model.feature_sets.rfe' nếu có; nếu không, dùng toàn bộ cột.
-    """
+def select_features_by_config(df: pd.DataFrame, model_cfg: dict, target: str) -> pd.DataFrame:
+    """Dùng danh sách 'model.feature_sets.rfe' nếu có; nếu không, dùng toàn bộ cột."""
     fs = (model_cfg.get("feature_sets") or {}).get("rfe")
     if not fs:
         return df
@@ -81,9 +82,8 @@ def select_features_by_config(
     return df[cols]
 
 
-def pick_model_and_grid(model_cfg: Dict) -> tuple[str, Dict, Dict]:
-    """
-    Trả về (model_name, base_params, grid).
+def pick_model_and_grid(model_cfg: dict) -> tuple[str, dict, dict]:
+    """Trả về (model_name, base_params, grid).
     YAML của bạn không có 'gridsearch'; ta dùng default nhỏ gọn.
     """
     name = model_cfg.get("best_model") or "RandomForest"
@@ -95,9 +95,7 @@ def pick_model_and_grid(model_cfg: Dict) -> tuple[str, Dict, Dict]:
     return name, base_params, grid
 
 
-def feature_names_after_fit(
-    pipe: Pipeline, num_cols: List[str], cat_cols: List[str]
-) -> List[str]:
+def feature_names_after_fit(pipe: Pipeline, num_cols: list[str], cat_cols: list[str]) -> list[str]:
     names = []
     try:
         names.extend(
@@ -117,18 +115,16 @@ def train_main(
     config_path: Path,
     data_path: Path,
     models_dir: Path,
-    tracking_uri: Optional[str],
-    experiment_name_arg: Optional[str] = None,
+    tracking_uri: str | None,
+    experiment_name_arg: str | None = None,
 ) -> None:
     cfg = load_config(config_path)
-    model_cfg: Dict = cfg.get("model", {})
+    model_cfg: dict = cfg.get("model", {})
     # Experiment/run naming (allow override via CLI, then YAML, then sensible default)
-    experiment_name_cfg: Optional[str] = (cfg.get("experiment") or {}).get(
-        "name"
-    ) or cfg.get("experiment_name")
-    experiment_name: str = (
-        experiment_name_arg or experiment_name_cfg or "house_price_experiments"
+    experiment_name_cfg: str | None = (cfg.get("experiment") or {}).get("name") or cfg.get(
+        "experiment_name"
     )
+    experiment_name: str = experiment_name_arg or experiment_name_cfg or "house_price_experiments"
 
     target = model_cfg.get("target_variable") or "price"
     scoring = model_cfg.get("scoring") or "neg_root_mean_squared_error"

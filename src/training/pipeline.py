@@ -1,22 +1,23 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Callable
+
 import logging
+from collections.abc import Callable
 
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.pipeline import Pipeline
 
 # Core sklearn regressors
 from sklearn.ensemble import (
-    RandomForestRegressor,
-    GradientBoostingRegressor,
     ExtraTreesRegressor,
+    GradientBoostingRegressor,
+    RandomForestRegressor,
 )
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVR
 
 
-def build_preprocess(num_cols: List[str], cat_cols: List[str]) -> ColumnTransformer:
+def build_preprocess(num_cols: list[str], cat_cols: list[str]) -> ColumnTransformer:
     ohe = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     preprocess = ColumnTransformer(
         transformers=[
@@ -28,9 +29,9 @@ def build_preprocess(num_cols: List[str], cat_cols: List[str]) -> ColumnTransfor
     return preprocess
 
 
-def _optional_imports() -> Dict[str, Callable]:
+def _optional_imports() -> dict[str, Callable]:
     """Return optional model constructors if libs are installed."""
-    registry: Dict[str, Callable] = {}
+    registry: dict[str, Callable] = {}
     # XGBoost
     try:
         from xgboost import XGBRegressor  # type: ignore
@@ -72,7 +73,7 @@ def _optional_imports() -> Dict[str, Callable]:
     return registry
 
 
-def _base_registry() -> Dict[str, Callable]:
+def _base_registry() -> dict[str, Callable]:
     """Always-available sklearn regressors."""
     return {
         # Tree-based
@@ -94,15 +95,14 @@ def _base_registry() -> Dict[str, Callable]:
     }
 
 
-def _get_model_registry() -> Dict[str, Callable]:
+def _get_model_registry() -> dict[str, Callable]:
     reg = _base_registry()
     reg.update(_optional_imports())
     return reg
 
 
-def build_model(name: str, params: Optional[Dict] = None):
-    """
-    Build a regressor dynamically by name.
+def build_model(name: str, params: dict | None = None):
+    """Build a regressor dynamically by name.
     Supported aliases: rf/randomforest, gbr, extratrees, linear/ridge/lasso/elasticnet, svr,
     and (if installed) xgboost/xgb, lgbm/lightgbm, catboost.
     """

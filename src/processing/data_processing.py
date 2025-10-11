@@ -1,5 +1,4 @@
-"""
-Minimal data processing CLI.
+"""Minimal data processing CLI.
 
 Args:
   --input:  path to raw CSV file
@@ -13,17 +12,20 @@ Pipeline:
   5) Drop obvious negatives on common numeric cols (if present)
   6) Drop duplicates
   7) Save to <output>/cleaned_data.csv
-  
+
 Run:
   python src/processing/data_processing.py \
     --input data/raw/house_data.csv \
     --output data/processed
+
 """
 
 from __future__ import annotations
+
 import argparse
-from pathlib import Path
 import logging
+from pathlib import Path
+
 import pandas as pd
 
 
@@ -48,12 +50,8 @@ def impute_missing_values(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def remove_price_outliers_iqr(
-    df: pd.DataFrame, target_col: str = "price"
-) -> pd.DataFrame:
-    if target_col not in df.columns or not pd.api.types.is_numeric_dtype(
-        df[target_col]
-    ):
+def remove_price_outliers_iqr(df: pd.DataFrame, target_col: str = "price") -> pd.DataFrame:
+    if target_col not in df.columns or not pd.api.types.is_numeric_dtype(df[target_col]):
         logging.info("Skip IQR: 'price' missing or non-numeric.")
         return df
     s = df[target_col].astype(float)
@@ -101,12 +99,8 @@ def process_dataset(input_csv: Path, output_dir: Path) -> Path:
 
 # ------------------------------ CLI ------------------------------ #
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="Clean raw dataset and write cleaned_data.csv"
-    )
-    p.add_argument(
-        "--input", "-i", required=True, type=str, help="Path to raw CSV file"
-    )
+    p = argparse.ArgumentParser(description="Clean raw dataset and write cleaned_data.csv")
+    p.add_argument("--input", "-i", required=True, type=str, help="Path to raw CSV file")
     p.add_argument("--output", "-o", required=True, type=str, help="Output directory")
     return p.parse_args()
 

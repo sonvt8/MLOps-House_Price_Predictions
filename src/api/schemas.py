@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import List
 
 
 class HousePredictionRequest(BaseModel):
@@ -10,12 +9,8 @@ class HousePredictionRequest(BaseModel):
         ...,
         description="Location (Downtown, Mountain, Rural, Suburb, Urban, Waterfront)",
     )
-    year_built: int = Field(
-        ..., ge=1800, le=2025, description="Year the house was built"
-    )
-    condition: str = Field(
-        ..., description="Condition of the house (Excellent, Good, Fair, Poor)"
-    )
+    year_built: int = Field(..., ge=1800, le=2025, description="Year the house was built")
+    condition: str = Field(..., description="Condition of the house (Excellent, Good, Fair, Poor)")
     # Optional features that will be calculated automatically if not provided
     total_rooms: float = Field(
         default=None,
@@ -25,6 +20,6 @@ class HousePredictionRequest(BaseModel):
 
 class PredictionResponse(BaseModel):
     predicted_price: float
-    confidence_interval: List[float]
+    confidence_interval: list[float]
     features_importance: dict
     prediction_time: str

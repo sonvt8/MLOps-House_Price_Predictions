@@ -580,3 +580,230 @@ docker system prune -f
 - **Streamlit** reachable and able to call the API (check logs for the resolved `API_URL`).
 
 > If something fails, run `kubectl get events --sort-by=.lastTimestamp -A` and `kubectl describe` on the failing resource first, then check container logs.
+
+---
+
+# Development Workflow — Code Quality & Pre-commit Rules
+
+This section outlines the mandatory code quality standards and pre-commit workflow that must be followed when contributing new code to this MLOps project.
+
+## Prerequisites for Development
+
+Before contributing code, ensure you have the following tools installed:
+
+```bash
+# Install development dependencies
+pip install ruff black pre-commit
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+## Code Quality Standards
+
+This project enforces strict code quality standards through automated tools:
+
+### 1. **Code Formatting (Black)**
+- **Tool**: Black formatter
+- **Standard**: PEP 8 with 99-character line length
+- **Auto-fix**: Yes (automatic on commit)
+
+### 2. **Code Linting (Ruff)**
+- **Tool**: Ruff linter
+- **Rules**: 15+ quality rules including:
+  - **E, W**: PEP 8 style guidelines
+  - **F**: Logic errors (unused imports, variables)
+  - **B**: Bug detection (flake8-bugbear)
+  - **S**: Security issues (bandit)
+  - **D**: Documentation standards
+  - **N**: Naming conventions
+  - **T**: Type checking hints
+  - **Q**: Code complexity (McCabe)
+  - **R**: Refactoring suggestions
+  - **PIE**: Performance optimization
+  - **SIM**: Code simplification
+  - **TCH**: Type checking improvements
+- **Auto-fix**: Yes (90%+ of issues)
+
+### 3. **File Quality Checks**
+- **Trailing whitespace**: Automatically removed
+- **End of file**: Ensures proper newline endings
+- **JSON syntax**: Validates JSON files
+- **Large files**: Warns about files >1MB
+- **Merge conflicts**: Detects unresolved conflicts
+- **Line endings**: Fixes mixed CRLF/LF issues
+
+## Mandatory Pre-commit Workflow
+
+### Step 1: Code Development
+```bash
+# 1. Create feature branch
+git checkout -b feature/your-feature-name
+
+# 2. Make your changes
+# ... edit files ...
+
+# 3. Test your changes locally
+python -m pytest tests/  # if tests exist
+```
+
+### Step 2: Pre-commit Validation
+```bash
+# 4. Run pre-commit checks manually (recommended)
+pre-commit run --all-files
+
+# This will automatically:
+# - Format code with Black
+# - Lint and fix with Ruff
+# - Remove trailing whitespace
+# - Fix end-of-file issues
+# - Validate JSON syntax
+# - Check for merge conflicts
+# - Fix line ending issues
+```
+
+### Step 3: Commit Process
+```bash
+# 5. Stage your changes
+git add .
+
+# 6. Commit (pre-commit hooks run automatically)
+git commit -m "feat: add new feature"
+
+# If pre-commit made changes, you'll see:
+# "Files were modified by this hook"
+# Re-stage and commit again:
+git add .
+git commit -m "feat: add new feature"
+```
+
+### Step 4: Push to Repository
+```bash
+# 7. Push to remote
+git push origin feature/your-feature-name
+
+# 8. Create Pull Request on GitHub
+# The CI/CD pipeline will validate your changes
+```
+
+## Code Quality Rules by File Type
+
+### **Python Files** (`*.py`)
+- ✅ **Black formatting** (99-character lines)
+- ✅ **Ruff linting** (15+ quality rules)
+- ✅ **Security checks** (bandit)
+- ✅ **Complexity limits** (McCabe ≤10)
+- ✅ **Type hints** (encouraged)
+- ✅ **Docstrings** (for public functions)
+
+### **Jupyter Notebooks** (`*.ipynb`)
+- ✅ **nbQA-Black** formatting
+- ✅ **nbQA-Ruff** linting
+- ✅ **Relaxed rules** for notebooks (print statements, unused imports allowed)
+
+### **Configuration Files**
+- ✅ **YAML validation** (disabled due to encoding issues)
+- ✅ **JSON validation**
+- ✅ **Trailing whitespace removal**
+- ✅ **End-of-file fixes**
+
+### **Docker Files**
+- ✅ **Hadolint** (Dockerfile linting)
+- ✅ **File format checks**
+
+## Quality Gates
+
+Your code **MUST** pass all quality gates before being merged:
+
+### **Local Quality Gates**
+```bash
+# All checks must pass
+pre-commit run --all-files
+# Expected output: All checks passed ✅
+```
+
+### **CI/CD Quality Gates**
+- ✅ **GitHub Actions** validation
+- ✅ **Docker build** success
+- ✅ **API health checks**
+- ✅ **End-to-end pipeline** validation
+
+## Common Issues & Solutions
+
+### **Issue**: Pre-commit fails with formatting errors
+```bash
+# Solution: Let pre-commit fix automatically
+pre-commit run --all-files
+git add .
+git commit -m "fix: auto-format code"
+```
+
+### **Issue**: Ruff linting errors
+```bash
+# Solution: Auto-fix with Ruff
+ruff check --fix .
+git add .
+git commit -m "fix: resolve linting issues"
+```
+
+### **Issue**: Large file warnings
+```bash
+# Solution: Add to .gitignore or use Git LFS
+echo "large_file.csv" >> .gitignore
+git rm --cached large_file.csv
+```
+
+### **Issue**: Merge conflict markers
+```bash
+# Solution: Resolve conflicts manually
+# Remove <<<<<<< ======= >>>>>>> markers
+# Then commit the resolved version
+```
+
+## Bypassing Pre-commit (Emergency Only)
+
+⚠️ **WARNING**: Only use in emergencies and fix immediately after:
+
+```bash
+# Skip pre-commit for this commit only
+git commit --no-verify -m "emergency: critical fix"
+
+# Immediately fix and recommit
+pre-commit run --all-files
+git add .
+git commit -m "fix: apply code quality standards"
+```
+
+## Team Responsibilities
+
+### **Developers Must**:
+1. ✅ Run `pre-commit run --all-files` before committing
+2. ✅ Fix all auto-fixable issues
+3. ✅ Address security warnings
+4. ✅ Keep functions under complexity limit (McCabe ≤10)
+5. ✅ Write meaningful commit messages
+
+### **Code Reviewers Must**:
+1. ✅ Verify all quality gates passed
+2. ✅ Check for security issues
+3. ✅ Ensure proper documentation
+4. ✅ Validate test coverage
+
+### **CI/CD Pipeline**:
+1. ✅ Automatically validates all changes
+2. ✅ Blocks merge if quality gates fail
+3. ✅ Provides detailed error reports
+4. ✅ Enforces consistent code standards
+
+## Benefits of This Workflow
+
+- 🚀 **Faster development**: Auto-fix eliminates manual formatting
+- 🛡️ **Higher quality**: Catches bugs and security issues early
+- 📏 **Consistent style**: All code follows same standards
+- 🔍 **Better reviews**: Focus on logic, not formatting
+- 🚫 **Fewer bugs**: Automated quality checks prevent issues
+- 📚 **Self-documenting**: Clear standards for new team members
+
+---
+
+**Remember**: These quality standards are not optional. They ensure the reliability, maintainability, and security of our MLOps pipeline. Every commit must pass all quality gates before being merged into the main branch.

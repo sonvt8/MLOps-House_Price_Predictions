@@ -1,5 +1,4 @@
-"""
-Streamlit UI to collect inputs and fetch house price predictions from a FastAPI service.
+"""Streamlit UI to collect inputs and fetch house price predictions from a FastAPI service.
 
 API contract (expected by backend /predict):
   Request (JSON):
@@ -27,31 +26,36 @@ Environment variables:
   APP_VERSION  App version string for footer (default: 1.0.0)
 """
 
-import streamlit as st
-import requests
-import json
-import time
 import os
 import socket  # For hostname and IP address
+import time
+
+import requests
+import streamlit as st
 import yaml
+
 
 # Set the page configuration (must be the first Streamlit command)
 st.set_page_config(
     page_title="House Price Predictor", layout="wide", initial_sidebar_state="collapsed"
 )
 
+
 # Function to load model configuration
 @st.cache_data
 def load_model_config():
     """Load model configuration from YAML file"""
     try:
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'configs', 'model_config.yaml')
-        with open(config_path, 'r') as file:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "configs", "model_config.yaml"
+        )
+        with open(config_path) as file:
             config = yaml.safe_load(file)
         return config
     except Exception as e:
         st.warning(f"Could not load model config: {e}")
         return {"model": {"best_model": "Unknown"}}
+
 
 # Load model configuration
 model_config = load_model_config()
@@ -119,9 +123,7 @@ with col1:
         bedrooms = st.selectbox("Bedrooms", options=[1, 2, 3, 4, 5, 6], index=2)
 
     with bath_col:
-        bathrooms = st.selectbox(
-            "Bathrooms", options=[1, 1.5, 2, 2.5, 3, 3.5, 4], index=2
-        )
+        bathrooms = st.selectbox("Bathrooms", options=[1, 1.5, 2, 2.5, 3, 3.5, 4], index=2)
 
     # Location dropdown (aligned with API categories)
     location = st.selectbox(
@@ -141,9 +143,7 @@ with col1:
     )
 
     # Predict button
-    predict_button = st.button(
-        "Predict Price", use_container_width=True, type="primary"
-    )
+    predict_button = st.button("Predict Price", use_container_width=True, type="primary")
 
     # end left column
 
@@ -219,9 +219,7 @@ with col2:
         col_a, col_b = st.columns(2)
         with col_a:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
-            st.markdown(
-                '<p class="info-label">Confidence Score</p>', unsafe_allow_html=True
-            )
+            st.markdown('<p class="info-label">Confidence Score</p>', unsafe_allow_html=True)
             st.markdown('<p class="info-value">92%</p>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -238,19 +236,13 @@ with col2:
             st.markdown('<p class="info-label">Price Range</p>', unsafe_allow_html=True)
             lower = "${:,.1f}".format(pred["confidence_interval"][0])
             upper = "${:,.1f}".format(pred["confidence_interval"][1])
-            st.markdown(
-                f'<p class="info-value">{lower} - {upper}</p>', unsafe_allow_html=True
-            )
+            st.markdown(f'<p class="info-value">{lower} - {upper}</p>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_d:
             st.markdown('<div class="info-card">', unsafe_allow_html=True)
-            st.markdown(
-                '<p class="info-label">Prediction Time</p>', unsafe_allow_html=True
-            )
-            st.markdown(
-                '<p class="info-value">0.12 seconds</p>', unsafe_allow_html=True
-            )
+            st.markdown('<p class="info-label">Prediction Time</p>', unsafe_allow_html=True)
+            st.markdown('<p class="info-value">0.12 seconds</p>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         # Top factors (from feature importance if available)

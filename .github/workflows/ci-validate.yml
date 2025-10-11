@@ -152,4 +152,3 @@ jobs:
         working-directory: src
         run: |
           docker compose down -v
-

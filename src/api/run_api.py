@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""
-Script để chạy House Price Prediction API server
+"""Script để chạy House Price Prediction API server
 Sử dụng: python src/api/run_api.py
 """
 
-import uvicorn
 import sys
 from pathlib import Path
+
+import uvicorn
+
 
 # Add src directory to Python path
 src_path = Path(__file__).parent.parent

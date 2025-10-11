@@ -1,0 +1,126 @@
+# pyproject.toml
+
+# --- Black Configuration ---
+# Black là công cụ định dạng code, đảm bảo code style nhất quán.
+# Nó ít tùy chọn vì triết lý của nó là "không cần lựa chọn".
+[tool.black]
+line-length = 99  # Độ dài dòng tối đa. 99 là một con số hợp lý, cân bằng giữa màn hình rộng và tính dễ đọc.
+# target-version = ['py310'] # Bỏ comment và chọn phiên bản Python của dự án nếu cần.
+
+
+# --- Ruff Configuration ---
+# Ruff là linter siêu nhanh, thay thế cho Flake8, isort, và nhiều công cụ khác.
+# Đây là nơi chúng ta định nghĩa các quy tắc "chất lượng" code.
+[tool.ruff]
+# Đặt độ dài dòng giống hệt Black để chúng không xung đột.
+line-length = 99
+
+# Cấu hình linting rules
+[tool.ruff.lint]
+# Danh sách các bộ quy tắc được kích hoạt.
+# E, W: Lỗi và cảnh báo style của pycodestyle (PEP 8)
+# F: Lỗi logic cơ bản của Pyflakes (biến không dùng, import thiếu)
+# I: Quy tắc sắp xếp import của isort
+# B: Các lỗi và bug tiềm ẩn từ flake8-bugbear
+# C4: Gợi ý tối ưu list/dict/set comprehensions
+# UP: Gợi ý nâng cấp cú pháp Python
+# A: Cảnh báo về việc dùng các hàm built-in nguy hiểm (ví dụ: `print`, `open`)
+# D: Các quy tắc về docstring và documentation (pydocstyle)
+# N: Naming conventions (pep8-naming)
+# S: Security issues (bandit)
+# T: Type checking hints
+# Q: Code complexity (mccabe)
+# R: Refactoring suggestions (pylint)
+# PIE: Gợi ý tối ưu performance
+# SIM: Gợi ý đơn giản hóa code
+# TCH: Type checking improvements
+select = ["E", "W", "F", "I", "B", "C4", "UP", "A", "D", "N", "S", "T", "Q", "R", "PIE", "SIM", "TCH"]
+
+# Danh sách các quy tắc bị bỏ qua.
+# E501: Lỗi "dòng quá dài", Black sẽ tự xử lý việc này nên ta bỏ qua ở linter.
+# B905: Bỏ qua lỗi zip không có strict=True (có thể bật lại nếu team bạn dùng Python 3.10+ và muốn chặt chẽ hơn).
+# D100-D104: Bỏ qua một số quy tắc docstring quá nghiêm ngặt cho private methods
+# S101: Bỏ qua cảnh báo về assert (cần thiết trong testing)
+# S311: Bỏ qua cảnh báo về random (cần thiết trong ML)
+# T201: Bỏ qua cảnh báo về print statements (cần thiết trong logging)
+# Q000: Bỏ qua single quotes (quá nhiều lỗi, Black sẽ xử lý)
+# E701, E702: Bỏ qua multiple statements (notebooks thường có)
+# D200, D400, D415: Bỏ qua docstring formatting (không ảnh hưởng logic)
+# N803, N806: Bỏ qua naming conventions (ML variables thường uppercase)
+# E402: Bỏ qua import order trong notebooks
+# W293: Bỏ qua whitespace (Black sẽ xử lý)
+# RET504: Bỏ qua unnecessary assignments (không ảnh hưởng logic)
+# TC002, TC003: Bỏ qua type checking imports (không ảnh hưởng runtime)
+# F841: Bỏ qua unused variables (ML code thường có)
+# D205: Bỏ qua docstring blank line (không ảnh hưởng logic)
+# S104: Bỏ qua binding to all interfaces (development server)
+# S110: Bỏ qua try-except-pass (ML code thường có)
+# SIM105, SIM115, SIM117: Bỏ qua một số optimization suggestions
+# B904: Bỏ qua exception chaining (có thể cải thiện sau)
+ignore = ["E501", "B905", "D100", "D101", "D102", "D103", "D104", "S101", "S311", "T201", "Q000", "E701", "E702", "D200", "D400", "D415", "N803", "N806", "E402", "W293", "RET504", "TC002", "TC003", "F841", "D205", "S104", "S110", "SIM105", "SIM115", "SIM117", "B904"]
+
+# Ruff có khả năng tự động sửa rất nhiều lỗi.
+fixable = ["A", "B", "C", "D", "E", "F", "I", "UP", "N", "PIE", "SIM", "TCH"]
+unfixable = ["S", "Q", "R"]  # Security, complexity, và refactoring cần review thủ công
+
+# Bỏ qua một số quy tắc cho các file/thư mục cụ thể.
+# Ví dụ: không báo lỗi "unused import" (F401) trong các file `__init__.py`
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["A001", "A002", "A003", "S101", "S311"] # Cho phép shadowing built-in và assert/random trong tests
+"notebooks/*" = ["T201", "F401", "F811", "S603", "S607", "SIM115", "SIM105", "S110", "SIM117"] # Cho phép print, unused imports, subprocess, và context managers trong notebooks
+"src/api/*" = ["D100", "D101", "B904", "S110"] # API endpoints có thể không cần docstring cho mỗi function
+"src/streamlit_app/*" = ["T201"] # Streamlit apps cần print statements
+
+# --- Ruff's isort Configuration ---
+# Cấu hình cho chức năng sắp xếp import của Ruff.
+[tool.ruff.lint.isort]
+# Cấu hình import sections cho dự án MLOps
+known-first-party = ["src"]
+# Thứ tự import: standard library -> third party -> local imports
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+# Tách biệt các section bằng blank line
+lines-after-imports = 2
+# Sắp xếp imports theo alphabetical order
+force-single-line = false
+
+
+# --- MLOps-specific Configuration ---
+# Cấu hình đặc biệt cho dự án Machine Learning
+[tool.ruff.lint.mccabe]
+# Giới hạn độ phức tạp của function (McCabe complexity)
+max-complexity = 10
+
+# Cấu hình cho type checking
+[tool.ruff.lint.pyupgrade]
+# Tự động nâng cấp cú pháp Python
+keep-runtime-typing = true
+
+# --- Ghi chú quan trọng ---
+# Với cấu hình trên, bạn chỉ cần cài đặt:
+# pip install ruff black
+
+# --- Hướng dẫn sử dụng cho đội nhóm ---
+#
+# === WORKFLOW HOÀN CHỈNH ===
+# 1. Format code với Black: black .
+# 2. Lint và fix với Ruff: ruff check --fix .
+# 3. Kiểm tra cuối cùng: ruff check .
+#
+# === COMMANDS CƠ BẢN ===
+# Format code: black .
+# Lint code: ruff check .
+# Auto-fix: ruff check --fix .
+#
+# === PRE-COMMIT HOOK ===
+# black . && ruff check --fix .
+#
+# === IDE SETUP ===
+# VS Code: Cài "Python", "Ruff", "Black Formatter"
+# PyCharm: Cài "Ruff", "Black"
+#
+# === CI/CD PIPELINE ===
+# - name: Format check
+#   run: black --check .
+# - name: Lint check
+#   run: ruff check .

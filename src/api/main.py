@@ -1,8 +1,11 @@
+import logging
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .inference import predict_price, batch_predict
+
+from .inference import batch_predict, predict_price
 from .schemas import HousePredictionRequest, PredictionResponse
-import logging
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

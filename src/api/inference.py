@@ -1,30 +1,27 @@
-import joblib
-import pandas as pd
 import json
 from datetime import datetime
 from pathlib import Path
+
+import joblib
+import pandas as pd
+
 from .schemas import HousePredictionRequest, PredictionResponse
 
+
 # Load model pipeline and feature names
-MODEL_PATH = (
-    Path(__file__).parent.parent / "models" / "trained" / "model_pipeline.joblib"
-)
-FEATURE_NAMES_PATH = (
-    Path(__file__).parent.parent / "models" / "trained" / "feature_names.json"
-)
+MODEL_PATH = Path(__file__).parent.parent / "models" / "trained" / "model_pipeline.joblib"
+FEATURE_NAMES_PATH = Path(__file__).parent.parent / "models" / "trained" / "feature_names.json"
 
 try:
     model_pipeline = joblib.load(MODEL_PATH)
-    with open(FEATURE_NAMES_PATH, "r") as f:
+    with open(FEATURE_NAMES_PATH) as f:
         feature_names = json.load(f)
 except Exception as e:
     raise RuntimeError(f"Error loading model pipeline or feature names: {str(e)}")
 
 
 def predict_price(request: HousePredictionRequest) -> PredictionResponse:
-    """
-    Predict house price based on input features.
-    """
+    """Predict house price based on input features."""
     try:
         # Prepare input data as DataFrame
         input_data = pd.DataFrame([request.dict()])
@@ -73,9 +70,7 @@ def predict_price(request: HousePredictionRequest) -> PredictionResponse:
 
 
 def batch_predict(requests: list[HousePredictionRequest]) -> list[float]:
-    """
-    Perform batch predictions.
-    """
+    """Perform batch predictions."""
     try:
         # Prepare input data as DataFrame
         input_data = pd.DataFrame([req.dict() for req in requests])
