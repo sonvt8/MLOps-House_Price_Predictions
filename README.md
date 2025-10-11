@@ -361,3 +361,222 @@ MLOps role of this workflow:
 - Separation of concerns: Keeps build/publish independent from runtime validation.
 
 ---
+
+---
+
+# Kubernetes Lab  — Local Environment & Kustomize Deployment (Post‑CI)
+
+This section shows how to spin up a local multi‑node Kubernetes environment with **KIND**, validate it with **kube-ops-view**, and deploy the **API** + **Streamlit UI** using **Kustomize** manifests. It follows the steps from the K801 lab and adapts them to this repository structure.
+
+## A. Prereqs (Windows 11 + Docker Desktop + WSL2)
+
+- **Docker Desktop** enabled with **WSL2 backend** (recommended on Windows Home/Pro).
+- **kubectl** in PATH (see earlier section of this README).
+- **kind** installed (Windows binary or via Chocolatey: `choco install kind`).
+- Optional but recommended: Windows Terminal / PowerShell 7.
+
+Quick checks:
+```powershell
+docker version
+kubectl version --client
+kind version
+```
+
+> KIND uses Docker containers as Kubernetes **nodes**. Your “3 nodes” in K801 are 3 Docker containers joined into one cluster/network.
+
+## B. Create a 3‑node KIND cluster
+
+> **Get the helper files first (required for this step):**
+```bash
+git clone https://github.com/initcron/k8s-code.git
+cd k8s-code/helper/kind/
+```
+
+
+From the repo root, if you have the file `kind-three-node-cluster.yaml` (from lab  [K801](https://kubernetes-tutorial.schoolofdevops.com/adv_kubernetes-setup/#)):
+
+```powershell
+kind create cluster --config kind-three-node-cluster.yaml
+kubectl cluster-info --context kind-kind
+kubectl get nodes
+kubectl get pods -A
+```
+
+You should see one control‑plane and two workers (all **Ready**) and system pods like `kube-proxy`, `CoreDNS`, `kindnet`, `local-path-provisioner`, and static pods for the control plane.
+
+> Tip (optional): To make NodePorts reachable on `localhost`, add `extraPortMappings` to your kind config for the ports you plan to use (e.g., 30000, 30100). Otherwise, use `kubectl port-forward` or the node container’s IP to access services.
+
+## C. Visualize cluster with kube-ops-view
+
+```powershell
+git clone https://github.com/schoolofdevops/kube-ops-view
+kubectl apply -f kube-ops-view/deploy/
+kubectl get pods,svc
+```
+
+Expected service:
+```
+service/kube-ops-view   NodePort   <CLUSTER-IP>   <none>   80:32000/TCP
+```
+
+Access options:
+- `kubectl port-forward svc/kube-ops-view 8080:80` → http://localhost:8080
+- Or via NodePort: `http://<node-container-ip>:32000`
+- If you configured `extraPortMappings`, `http://localhost:32000`
+
+To stop/start later:
+```powershell
+kubectl scale deploy/kube-ops-view --replicas=0   # stop
+kubectl scale deploy/kube-ops-view --replicas=1   # start
+```
+
+## D. Deploy API + UI with Kustomize
+
+This repo includes individual manifests (`api-deploy.yaml`, `api-svc.yaml`, `streamlit-deploy.yaml`, `streamlit-svc.yaml`) and a `kustomization.yaml` that references them.
+
+**Folder layout (example):**
+```
+deployment/kubernetes/
+├─ api-deploy.yaml
+├─ api-svc.yaml
+├─ streamlit-deploy.yaml
+├─ streamlit-svc.yaml
+└─ kustomization.yaml
+```
+
+**Apply with Kustomize:**
+```powershell
+cd deployment/kubernetes
+kubectl apply -k .
+kubectl get all
+```
+
+**What the manifests do (defaults you can tune):**
+- API (FastAPI) Deployment listens on **8000**; Service type **NodePort** @ **30100**.
+- UI (Streamlit) Deployment listens on **8501**; Service type **NodePort** @ **30000**.
+- The UI expects the API URL. Use one of:
+  - In‑cluster DNS (if coded that way): `http://house-price-api:8000`
+  - Or an explicit env var: set `API_URL` in the UI Deployment to `http://house-price-api:8000`
+  - For local host access, port‑forward is simplest (see below).
+
+**Port-forward for quick testing (works everywhere):**
+```powershell
+# API
+kubectl port-forward svc/house-price-api 8000:8000
+# UI
+kubectl port-forward svc/house-price-ui  8501:8501
+```
+Open: http://localhost:8000/docs and http://localhost:8501
+
+**Using NodePort instead (KIND caveat):**
+- With default KIND networking, use the node container IP:
+  - `docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" kind-control-plane`
+  - API → `http://<ip>:30100`, UI → `http://<ip>:30000`
+- If you added `extraPortMappings`, use `http://localhost:<nodePort>` directly.
+
+## E. Generate manifests from kubectl (optional patterns)
+
+You can “print but don’t create” YAML from commands, then keep them under version control:
+
+```bash
+kubectl create deployment house-price-api --image=sonvt8/house-price-api:latest --port=8000 \
+  --dry-run=client -o yaml > api-deploy.yaml
+
+kubectl create service nodeport house-price-api --tcp=8000 --node-port=30100 \
+  --dry-run=client -o yaml > api-svc.yaml
+```
+
+- `--dry-run=client`: build the object locally without sending to the API server.
+- `--dry-run=server`: ask the API server to validate/default, but **don’t persist**.
+- After editing YAML, apply with `kubectl apply -k .` (Kustomize) or `kubectl apply -f <file>`.
+
+## F. Image sourcing in KIND (important)
+
+KIND’s nodes are **separate container runtimes**. If you want to use a **locally built** image (not pushed to a registry), load it into the cluster:
+
+```bash
+docker build -t house-price-api:0.1 .
+kind load docker-image house-price-api:0.1
+# Then reference image: house-price-api:0.1 in Deployment
+# and prefer: imagePullPolicy: IfNotPresent
+```
+
+If you use Docker Hub images (e.g., `sonvt8/house-price-api:latest`), the nodes will pull them normally (add `imagePullSecrets` if private).
+
+## G. Troubleshooting quick sheet
+
+**Service not reachable**
+- Ensure Service selector matches Pod labels:
+  - `kubectl get pods --show-labels`
+  - `kubectl get svc <name> -o yaml`
+  - `kubectl get endpoints <name> -o wide`
+- Prefer `kubectl port-forward` to bypass NodePort quirks in KIND.
+
+**`ErrImagePull` / `ImagePullBackOff`**
+- Tag and `kind load docker-image <name:tag>` for local images.
+- Or push to registry and point Deployment to the full image name.
+
+**`CrashLoopBackOff`**
+- `kubectl logs deploy/<name> --tail=200`
+- `kubectl logs pod/<name> --previous --tail=200`
+- Verify command/entrypoint, env vars, ports bound to `0.0.0.0`, and required files/paths.
+
+**Rollout / recreate**
+```bash
+kubectl rollout restart deploy/<name>
+kubectl rollout status deploy/<name>
+kubectl scale deploy/<name> --replicas=0 && kubectl scale deploy/<name> --replicas=1
+```
+
+**Clean up lab**
+```bash
+kubectl delete -k deployment/kubernetes
+kind delete cluster
+```
+
+## I. Cleanup strategies — reclaim in levels (choose what you need)
+
+Sometimes you only want to reclaim app resources, not the whole cluster. The commands below let you clean up **by layer**, so users can remove exactly what they want.
+
+### Level 1 — App layer (UI & API only)
+```bash
+# Delete Deployments and Services for API & UI
+kubectl delete deploy,svc house-price-api house-price-ui --ignore-not-found
+```
+
+### Level 2 — Observability/utility (kube-ops-view)
+```bash
+kubectl delete deploy kube-ops-view --ignore-not-found
+kubectl delete svc kube-ops-view --ignore-not-found
+```
+
+### Level 3 — Kustomize stack (if deployed with kustomization.yaml)
+```bash
+# Run from the folder containing your kustomization.yaml
+kubectl delete -k .
+```
+
+### Level 4 — Networking access (optional)
+- Stop any `kubectl port-forward` processes (Ctrl+C in that terminal).
+- If you created extra NodePorts/Ingresses manually, delete them as needed.
+
+### Level 5 — KIND cluster
+```bash
+kind delete cluster
+```
+
+### Level 6 — Docker housekeeping on host (optional)
+```bash
+# Remove images you no longer need (example)
+docker rmi sonvt8/house-price-api:latest sonvt8/house-price-ui:latest || true
+# Reclaim dangling resources (be cautious)
+docker system prune -f
+```
+
+## H. What users should see working
+
+- **kube-ops-view** UI reachable (via port-forward or NodePort) and showing 3 nodes.
+- **FastAPI** reachable at `/health` and `/docs`.
+- **Streamlit** reachable and able to call the API (check logs for the resolved `API_URL`).
+
+> If something fails, run `kubectl get events --sort-by=.lastTimestamp -A` and `kubectl describe` on the failing resource first, then check container logs.
