@@ -118,13 +118,13 @@ jobs:
       - name: Health check API
         run: |
           for i in {1..30}; do
-            if curl -sSf http://localhost:8000/health >/dev/null; then
+            if curl -sSf http://localhost:8005/health >/dev/null; then
               echo "API healthy"; break; fi; sleep 2; done
-          curl -sS http://localhost:8000/docs | head -n 5 || true
+          curl -sS http://localhost:8005/docs | head -n 5 || true
 
       - name: Smoke test prediction endpoint
         run: |
-          curl -sS -X POST http://localhost:8000/predict \
+          curl -sS -X POST http://localhost:8005/predict \
             -H "Content-Type: application/json" \
             -d '{"sqft": 1500, "bedrooms": 3, "bathrooms": 2, "location": "Urban", "year_built": 2000, "condition": "Good"}' | jq . || true
 
