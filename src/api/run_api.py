@@ -15,16 +15,16 @@ sys.path.insert(0, str(src_path))
 
 if __name__ == "__main__":
     print("🚀 Starting House Price Prediction API Server...")
-    print("📡 Server will be available at: http://localhost:8000")
-    print("📚 API documentation: http://localhost:8000/docs")
-    print("🔍 Health check: http://localhost:8000/health")
+    print("📡 Server will be available at: http://localhost:8005")
+    print("📚 API documentation: http://localhost:8005/docs")
+    print("🔍 Health check: http://localhost:8005/health")
     print("\nPress Ctrl+C to stop the server")
     print("=" * 50)
 
     uvicorn.run(
         "api.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8005,
         reload=True,  # Auto-reload on code changes
         log_level="info",
     )

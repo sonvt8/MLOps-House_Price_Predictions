@@ -170,7 +170,7 @@ with col2:
 
             try:
                 # Get API endpoint from environment variable or use default localhost
-                api_endpoint = os.getenv("API_URL", "http://localhost:8000")
+                api_endpoint = os.getenv("API_URL", "http://localhost:8005")
                 predict_url = f"{api_endpoint.rstrip('/')}/predict"
 
                 st.caption(

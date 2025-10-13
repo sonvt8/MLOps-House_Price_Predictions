@@ -125,14 +125,14 @@ Outputs:
 python src/api/run_api.py
 
 # Option B: uvicorn directly
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+uvicorn api.main:app --host 0.0.0.0 --port 8005
 ```
 
 Quick checks:
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8005/health
 
-curl -X POST http://localhost:8000/predict \
+curl -X POST http://localhost:8005/predict \
   -H "Content-Type: application/json" \
   -d '{
         "sqft": 1500,
@@ -148,7 +148,7 @@ curl -X POST http://localhost:8000/predict \
 
 ```bash
 # Optionally point UI to a remote API
-export API_URL=http://localhost:8000
+export API_URL=http://localhost:8005
 
 streamlit run src/streamlit_app/app.py
 ```
@@ -166,14 +166,14 @@ docker build -t house-price-api .
 
 Run the container:
 ```bash
-docker run -d --rm -p 8000:8000 \
+docker run -d --rm -p 8005:8005 \
   -e APP_VERSION=1.0.0 \
   house-price-api
 ```
 
 Optional: mount local model artifacts (for rapid iteration):
 ```bash
-docker run --rm -p 8000:8000 \
+docker run --rm -p 8005:8005 \
   -v $(pwd)/src/models/trained:/app/src/models/trained \
   house-price-api
 ```
@@ -186,7 +186,7 @@ docker build -f src/streamlit_app/Dockerfile -t house-price-ui .
 Run the Streamlit UI container (pointing to local API):
 ```bash
 docker run -d --rm -p 8501:8501 \
-  -e API_URL=http://host.docker.internal:8000 \
+  -e API_URL=http://host.docker.internal:8005 \
   -e APP_VERSION=1.0.0 \
   house-price-ui
 ```
@@ -232,8 +232,8 @@ docker push YOUR_DOCKERHUB_USER/house-price-ui:latest
 
 Quick pull/run test from another machine:
 ```bash
-docker run -d --rm -p 8000:8000 YOUR_DOCKERHUB_USER/house-price-api:latest
-docker run -d --rm -p 8501:8501 -e API_URL=http://host.docker.internal:8000 YOUR_DOCKERHUB_USER/house-price-ui:latest
+docker run -d --rm -p 8005:8005 YOUR_DOCKERHUB_USER/house-price-api:latest
+docker run -d --rm -p 8501:8501 -e API_URL=http://host.docker.internal:8005 YOUR_DOCKERHUB_USER/house-price-ui:latest
 ```
 
 ---
@@ -247,7 +247,7 @@ A unified compose lives at `src/docker-compose.yaml`. Because it mounts MLflow v
 cd src
 docker compose up -d --build
 # MLflow     -> http://localhost:5555
-# API        -> http://localhost:8000 (health: /health, docs: /docs)
+# API        -> http://localhost:8005 (health: /health, docs: /docs)
 # Streamlit  -> http://localhost:8501
 ```
 
@@ -452,21 +452,21 @@ kubectl get all
 ```
 
 **What the manifests do (defaults you can tune):**
-- API (FastAPI) Deployment listens on **8000**; Service type **NodePort** @ **30100**.
+- API (FastAPI) Deployment listens on **8005**; Service type **NodePort** @ **30100**.
 - UI (Streamlit) Deployment listens on **8501**; Service type **NodePort** @ **30000**.
 - The UI expects the API URL. Use one of:
-  - In‑cluster DNS (if coded that way): `http://house-price-api:8000`
-  - Or an explicit env var: set `API_URL` in the UI Deployment to `http://house-price-api:8000`
+  - In‑cluster DNS (if coded that way): `http://house-price-api:8005`
+  - Or an explicit env var: set `API_URL` in the UI Deployment to `http://house-price-api:8005`
   - For local host access, port‑forward is simplest (see below).
 
 **Port-forward for quick testing (works everywhere):**
 ```powershell
 # API
-kubectl port-forward svc/house-price-api 8000:8000
+kubectl port-forward svc/house-price-api 8005:8005
 # UI
 kubectl port-forward svc/house-price-ui  8501:8501
 ```
-Open: http://localhost:8000/docs and http://localhost:8501
+Open: http://localhost:8005/docs and http://localhost:8501
 
 **Using NodePort instead (KIND caveat):**
 - With default KIND networking, use the node container IP:
@@ -479,11 +479,19 @@ Open: http://localhost:8000/docs and http://localhost:8501
 You can “print but don’t create” YAML from commands, then keep them under version control:
 
 ```bash
-kubectl create deployment house-price-api --image=sonvt8/house-price-api:latest --port=8000 \
+kubectl create deployment house-price-api --image=sonvt8/house-price-api:latest --port=8005 \
   --dry-run=client -o yaml > api-deploy.yaml
 
-kubectl create service nodeport house-price-api --tcp=8000 --node-port=30100 \
+kubectl create service nodeport house-price-api --tcp=8005 --node-port=30100 \
   --dry-run=client -o yaml > api-svc.yaml
+```
+
+```bash
+kubectl create deployment house-price-ui --image=sonvt8/house-price-ui:k8s --port=8501\
+  --dry-run=client -o yaml > streamlit-deploy.yaml
+
+kubectl create service nodeport house-price-api --tcp=8501 --node-port=30100 \
+  --dry-run=client -o yaml > streamlit-svc.yaml
 ```
 
 - `--dry-run=client`: build the object locally without sending to the API server.
